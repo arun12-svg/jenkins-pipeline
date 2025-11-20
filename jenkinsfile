@@ -1,0 +1,53 @@
+pipeline {
+    agent any
+
+    stages {
+
+        stage('Checkout Code') {
+            steps {
+                echo "Pulling code from GitHub..."
+                checkout scm
+            }
+        }
+
+        stage('Build Stage') {
+            steps {
+                echo "Running build steps..."
+                sh """
+                    echo "This is a sample Jenkins pipeline running from GitHub!"
+                    echo "Workspace:"
+                    pwd
+                    ls -la
+                """
+            }
+        }
+
+        stage('Test Stage') {
+            steps {
+                echo "Running sample tests..."
+                sh """
+                    echo "Simulating test execution..."
+                    sleep 2
+                """
+            }
+        }
+
+        stage('Deploy Stage') {
+            steps {
+                echo "Deploying application..."
+                sh """
+                    echo "Deploy step executed successfully."
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline completed successfully!"
+        }
+        failure {
+            echo "Pipeline failed!"
+        }
+    }
+}
