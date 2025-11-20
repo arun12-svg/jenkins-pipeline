@@ -1,42 +1,50 @@
 pipeline {
     agent any
 
+    environment {
+        IMAGE_NAME = "myapp"
+        IMAGE_TAG = "v${BUILD_NUMBER}"
+        CONTAINER_NAME = "myapp-container"
+    }
+
     stages {
 
         stage('Checkout Code') {
             steps {
-                echo "Pulling code from GitHub..."
-                checkout scm
+                echo "Pulling latest code..."
+                git branch: 'main', url: 'https://github.com/arun12-svg/jenkins-pipeline.git'
             }
         }
 
-        stage('Build Stage') {
+        stage('Docker Build') {
             steps {
-                echo "Running build steps..."
+                echo "Building Docker image..."
                 sh """
-                    echo "This is a sample Jenkins pipeline running from GitHub!"
-                    echo "Workspace:"
-                    pwd
-                    ls -la
+                    docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
                 """
             }
         }
 
-        stage('Test Stage') {
+        stage('Stop Old Container') {
             steps {
-                echo "Running sample tests..."
+                echo "Stopping old container if exists..."
                 sh """
-                    echo "Simulating test execution..."
-                    sleep 2
+                    if [ \$(docker ps -aq -f name=${CONTAINER_NAME}) ]; then
+                        docker stop ${CONTAINER_NAME} || true
+                        docker rm ${CONTAINER_NAME} || true
+                    fi
                 """
             }
         }
 
-        stage('Deploy Stage') {
+        stage('Run New Container') {
             steps {
-                echo "Deploying application..."
+                echo "Running new container..."
                 sh """
-                    echo "Deploy step executed successfully."
+                    docker run -d \
+                        --name ${CONTAINER_NAME} \
+                        -p 8080:8080 \
+                        ${IMAGE_NAME}:${IMAGE_TAG}
                 """
             }
         }
@@ -44,10 +52,11 @@ pipeline {
 
     post {
         success {
-            echo "Pipeline completed successfully!"
+            echo "Docker CI pipeline completed successfully."
+            sh "docker images | head"
         }
         failure {
-            echo "Pipeline failed!"
+            echo "Pipeline failed. Check logs."
         }
     }
 }
