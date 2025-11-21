@@ -25,22 +25,6 @@ def run(cmd):
         print(f"❌ Failed: {cmd}")
         sys.exit(result.returncode)
 
-
-# -------------------------
-# STAGE: GIT CHECKOUT
-# -------------------------
-def checkout_code():
-    print("📥 Checking out GitHub repository...")
-
-    # If folder exists, pull latest
-    if os.path.exists(".git"):
-        run("git pull")
-    else:
-        run(f"git clone -b {BRANCH} {GIT_URL} .")
-
-    print("✔ Git checkout completed")
-
-
 # -------------------------
 # STAGE: BUILD DOCKER IMAGE
 # -------------------------
