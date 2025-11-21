@@ -3,80 +3,48 @@ import os
 import sys
 import tempfile
 
-# -------------------------
-# CONFIGURATION VARIABLES
-# -------------------------
-GIT_URL = "https://github.com/arun12-svg/jenkins-pipeline.git"
-BRANCH = "main"
-
 DOCKER_IMAGE = "arun054/myapp"
 DOCKER_TAG = "v1"
 
-K8S_DEPLOYMENT_FILE = "k8s-deployment.yml"
-
-
-# -------------------------
-# UTILITY RUNNER
-# -------------------------
 def run(cmd):
-    print(f"\n---- Running: {cmd} ----")
+    print(f"\n---- Running: {cmd} ----\n")
     result = subprocess.run(cmd, shell=True)
     if result.returncode != 0:
         print(f"❌ Failed: {cmd}")
         sys.exit(result.returncode)
 
-# -------------------------
-# STAGE: BUILD DOCKER IMAGE
-# -------------------------
 def build_docker_image():
-    print("🐳 Building Docker image...")
     run(f"docker build -t {DOCKER_IMAGE}:{DOCKER_TAG} .")
 
-
-# -------------------------
-# STAGE: DOCKERHUB LOGIN & PUSH
-# -------------------------
 def docker_login_and_push():
-    print("🔐 Logging into DockerHub...")
-
     USER = os.getenv("DOCKER_USER")
     PASS = os.getenv("DOCKER_PASS")
 
     if not USER or not PASS:
-        print("❌ ERROR: Jenkins must supply DOCKER_USER and DOCKER_PASS")
+        print("❌ Set DOCKER_USER and DOCKER_PASS from Jenkins credentials")
         sys.exit(1)
 
     run(f'echo "{PASS}" | docker login -u "{USER}" --password-stdin')
     run(f"docker push {DOCKER_IMAGE}:{DOCKER_TAG}")
 
-    print("✔ Docker image pushed")
-
-
-# -------------------------
-# STAGE: LOAD KUBECONFIG
-# -------------------------
 def load_kubeconfig():
-    print("🔐 Loading Kubernetes credentials...")
-
     kubeconfig_content = os.getenv("KUBECONFIG_CONTENT")
 
     if not kubeconfig_content:
-        print("❌ ERROR: Jenkins must provide KUBECONFIG_CONTENT")
+        print("❌ Missing KUBECONFIG_CONTENT (inject kubeconfig Jenkins secret file)")
         sys.exit(1)
 
+    # Write kubeconfig to a temp file
     temp_file = tempfile.NamedTemporaryFile(delete=False)
     temp_file.write(kubeconfig_content.encode())
     temp_file.close()
 
+    # Export KUBECONFIG to point to temp kubeconfig file
     os.environ["KUBECONFIG"] = temp_file.name
-    print(f"✔ Kubeconfig loaded at {temp_file.name}")
+    print(f"✔ Loaded kubeconfig into {temp_file.name}")
 
-
-# -------------------------
-# STAGE: DEPLOY TO K8S
-# -------------------------
 def deploy_kubernetes():
-    print("🚀 Deploying to Kubernetes...")
+    print("📦 Deploying to Kubernetes...")
 
     update_cmd = (
         f"kubectl set image deployment/myapp myapp={DOCKER_IMAGE}:{DOCKER_TAG} "
@@ -86,21 +54,15 @@ def deploy_kubernetes():
     result = subprocess.run(update_cmd, shell=True)
 
     if result.returncode != 0:
-        print("⚠ Deployment missing — applying manifest")
-        run(f"kubectl apply -f {K8S_DEPLOYMENT_FILE}")
+        print("⚠ Deployment not found — applying new manifests")
+        run("kubectl apply -f k8s-deployment.yml")
 
-    print("✔ Kubernetes deployment updated")
-
-
-# -------------------------
-# MAIN PIPELINE
-# -------------------------
 if __name__ == "__main__":
-    print("\n🚀 Starting Full Python Jenkins Pipeline...\n")
+    print("🚀 Starting Python Pipeline...")
 
-    checkout_code()
     build_docker_image()
     docker_login_and_push()
+
     load_kubeconfig()
     deploy_kubernetes()
 
