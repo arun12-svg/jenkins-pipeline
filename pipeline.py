@@ -22,7 +22,7 @@ def docker_login_and_push():
     PASS = os.getenv("DOCKER_PASS")
 
     if not USER or not PASS:
-        print("Missing DockerHub credentials! (DOCKER_USER / DOCKER_PASS)")
+        print("Missing DockerHub credentials (DOCKER_USER / DOCKER_PASS)")
         sys.exit(1)
 
     run(f'echo "{PASS}" | docker login -u "{USER}" --password-stdin')
@@ -33,7 +33,7 @@ def load_kubeconfig():
     kubeconfig_file = os.getenv("KUBECONFIG")
 
     if not kubeconfig_file or not os.path.exists(kubeconfig_file):
-        print(" Kubeconfig file missing or invalid!")
+        print("Kubeconfig file missing or invalid")
         print(f"KUBECONFIG env value: {kubeconfig_file}")
         sys.exit(1)
 
@@ -42,7 +42,7 @@ def load_kubeconfig():
 
 
 def deploy_kubernetes():
-    print(" Deploying to Kubernetes...")
+    print("Deploying to Kubernetes...")
 
     update_cmd = (
         f"kubectl set image deployment/myapp myapp={DOCKER_IMAGE}:{DOCKER_TAG} "
@@ -55,7 +55,7 @@ def deploy_kubernetes():
         print("Deployment not found — applying YAML manifests")
         run("kubectl apply -f k8s-deployment.yml")
     else:
-        print("Deployment updated successfully!")
+        print("Deployment updated successfully")
 
 
 if __name__ == "__main__":
@@ -66,4 +66,4 @@ if __name__ == "__main__":
     load_kubeconfig()
     deploy_kubernetes()
 
-    print("\n Pipeline completed successfully!")
+    print("Pipeline completed successfully")
