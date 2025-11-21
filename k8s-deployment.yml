@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: myapp
-          image: arun12svg/myapp:v1
+          image: arun054/myapp:v1
           ports:
             - containerPort: 8080
 ---
