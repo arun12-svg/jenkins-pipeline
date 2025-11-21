@@ -34,8 +34,8 @@ pipeline {
                         export DOCKER_USER="${DOCKER_USER}"
                         export DOCKER_PASS="${DOCKER_PASS}"
 
-                        # Load kubeconfig content so Python script receives it
-                        export KUBECONFIG_CONTENT="$(cat ${KUBECONFIG_FILE})"
+                        # Pass kubeconfig path directly
+                        export KUBECONFIG="${KUBECONFIG_FILE}"
 
                         python3 pipeline.py
                     '''
@@ -53,3 +53,5 @@ pipeline {
         }
     }
 }
+}
+
