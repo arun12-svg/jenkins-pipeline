@@ -18,9 +18,9 @@ def home():
     return "Your Jenkins Pipeline Deployment is Working!"
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    app.run(host="0.0.0.0", port=8087)
 EOF
 
-EXPOSE 8080
+EXPOSE 8087
 
 CMD ["python3", "app.py"]
