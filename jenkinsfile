@@ -35,7 +35,7 @@ pipeline {
                         export DOCKER_PASS="${DOCKER_PASS}"
                         
                         # FIX: Proper kubeconfig export
-                        export KUBECONFIG_CONTENT="${KUBECONFIG_FILE}"
+                        export KUBECONFIG="${KUBECONFIG_FILE}"
 
                         python3 pipeline.py
                     '''
