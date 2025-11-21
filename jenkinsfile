@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE = "arun054/myapp"
-        DOCKER_TAG = "v1"
+        DOCKER_TAG   = "v1"
     }
 
     stages {
@@ -17,7 +17,29 @@ pipeline {
 
         stage('Run Python Pipeline Script') {
             steps {
-                sh 'python3 pipeline.py'
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    ),
+                    file(
+                        credentialsId: 'kubeconfig',
+                        variable: 'KUBECONFIG_FILE'
+                    )
+                ]) {
+                    sh '''
+                        echo "🔐 Exporting Docker & Kubernetes credentials"
+
+                        export DOCKER_USER="${DOCKER_USER}"
+                        export DOCKER_PASS="${DOCKER_PASS}"
+
+                        # Load kubeconfig content so Python script receives it
+                        export KUBECONFIG_CONTENT="$(cat ${KUBECONFIG_FILE})"
+
+                        python3 pipeline.py
+                    '''
+                }
             }
         }
     }
