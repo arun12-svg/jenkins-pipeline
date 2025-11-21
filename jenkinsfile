@@ -15,33 +15,28 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Install Python dependencies') {
             steps {
-                sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
+                sh "python3 --version"
+                sh "pip3 install --upgrade pip"
             }
         }
 
-        stage('Docker Hub Login & Push') {
+        stage('Run Python Pipeline Script') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'USER',
-                    passwordVariable: 'PASS'
-                )]) {
-                    sh 'echo "$PASS" | docker login -u "$USER" --password-stdin'
-                    sh 'docker push $DOCKER_IMAGE:$DOCKER_TAG'
-                }
-            }
-        }
-
-        stage('Deploy to Kubernetes') {
-            steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
-                    sh '''
+                withCredentials([
+                    usernamePassword(credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'),
+                    file(credentialsId: 'kubeconfig',
+                        variable: 'KUBECONFIG')
+                ]) {
+                    sh """
+                        export DOCKER_USER=$DOCKER_USER
+                        export DOCKER_PASS=$DOCKER_PASS
                         export KUBECONFIG=$KUBECONFIG
-                        kubectl set image deployment/myapp myapp=$DOCKER_IMAGE:$DOCKER_TAG --namespace default || \
-                        kubectl apply -f k8s-deployment.yml
-                    '''
+                        python3 pipeline.py
+                    """
                 }
             }
         }
@@ -49,7 +44,7 @@ pipeline {
 
     post {
         success {
-            echo "Pipeline succeeded!"
+            echo "Pipeline completed successfully!"
         }
         failure {
             echo "Pipeline failed!"
