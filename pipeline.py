@@ -40,16 +40,19 @@ def main():
     run_cmd(f"docker build -t {IMAGE_NAME} .")
 
     # -------------------------
-    # 3. Login & Push Image
+    # 3. Login & Push Image (Optional)
     # -------------------------
     docker_user = os.getenv("DOCKER_USERNAME")
     docker_pass = os.getenv("DOCKER_PASSWORD")
 
     if docker_user and docker_pass:
+        print("\n=== Logging into Docker Hub and pushing image ===\n")
         run_cmd(f'echo "{docker_pass}" | docker login -u "{docker_user}" --password-stdin')
         run_cmd(f"docker push {IMAGE_NAME}")
     else:
-        print("⚠ Skipping push (DOCKER_USERNAME or PASSWORD missing)")
+        print("\n⚠ Docker credentials not set. Using local image only.\n")
+        # Use local image for Kubernetes by referencing it directly
+        IMAGE_NAME = IMAGE_NAME  # No change needed; Kubernetes will pull from local Docker
 
     # -------------------------
     # 4. Deploy to Kubernetes
@@ -64,6 +67,7 @@ spec:
   containers:
     - name: {APP_NAME}
       image: {IMAGE_NAME}
+      imagePullPolicy: IfNotPresent
       ports:
         - containerPort: 8000
 """
@@ -78,7 +82,7 @@ spec:
     # -------------------------
     print("\n=== Waiting for Pod to become Running ===\n")
 
-    for i in range(30):  # wait up to 60 seconds
+    for i in range(30):  # wait up to ~60 seconds
         result = subprocess.getoutput(
             f"kubectl get pod {APP_NAME} -n {K8S_NAMESPACE} -o jsonpath='{{.status.phase}}'"
         )
