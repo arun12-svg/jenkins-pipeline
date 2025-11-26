@@ -52,28 +52,27 @@ def main():
     run_cmd(f"docker push {IMAGE_NAME}")
 
     # -------------------------
-    # 4. Deploy to Kubernetes
+    # 4. Deploy to Kubernetes (Using pod.yaml template)
     # -------------------------
-    pod_yaml = f"""
-apiVersion: v1
-kind: Pod
-metadata:
-  name: {APP_NAME}
-  namespace: {K8S_NAMESPACE}
-spec:
-  containers:
-    - name: {APP_NAME}
-      image: {IMAGE_NAME}
-      imagePullPolicy: Always
-      ports:
-        - containerPort: 8000
-"""
 
-    with open("pod.yaml", "w") as f:
-        f.write(pod_yaml)
+    # Load template pod.yaml
+    with open("pod.yaml", "r") as f:
+        template = f.read()
+
+    # Replace dynamic values
+    final_yaml = (
+        template
+        .replace("{{APP_NAME}}", APP_NAME)
+        .replace("{{K8S_NAMESPACE}}", K8S_NAMESPACE)
+        .replace("{{IMAGE_NAME}}", IMAGE_NAME)
+    )
+
+    # Save final rendered YAML
+    with open("pod_rendered.yaml", "w") as f:
+        f.write(final_yaml)
 
     # -------------------------
-    # Delete old pod first (important)
+    # Delete old pod first
     # -------------------------
     print("\n=== Deleting old pod if it exists ===\n")
     run_cmd(f"kubectl delete pod {APP_NAME} -n {K8S_NAMESPACE} --ignore-not-found=true")
@@ -82,7 +81,7 @@ spec:
     # Apply new pod
     # -------------------------
     print("\n=== Creating new pod ===\n")
-    run_cmd(f"kubectl apply -f pod.yaml -n {K8S_NAMESPACE}")
+    run_cmd(f"kubectl apply -f pod_rendered.yaml -n {K8S_NAMESPACE}")
 
     # -------------------------
     # 5. Wait for Pod
