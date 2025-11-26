@@ -19,6 +19,11 @@ def main():
     # -------------------------
     APP_NAME = "python-k8s-app"
     DOCKER_USER = "arun054"
+    
+    # === ADD CREDENTIALS HERE ===
+    DOCKER_USERNAME = "arun054"
+    DOCKER_PASSWORD = "arunkumar"
+    
     REPO_URL = "https://github.com/arun12-svg/jenkins-pipeline.git"
     K8S_NAMESPACE = "default"
 
@@ -40,19 +45,11 @@ def main():
     run_cmd(f"docker build -t {IMAGE_NAME} .")
 
     # -------------------------
-    # 3. Login & Push Image (Optional)
+    # 3. Login & Push Image
     # -------------------------
-    docker_user = os.getenv("DOCKER_USERNAME")
-    docker_pass = os.getenv("DOCKER_PASSWORD")
-
-    if docker_user and docker_pass:
-        print("\n=== Logging into Docker Hub and pushing image ===\n")
-        run_cmd(f'echo "{docker_pass}" | docker login -u "{docker_user}" --password-stdin')
-        run_cmd(f"docker push {IMAGE_NAME}")
-    else:
-        print("\n⚠ Docker credentials not set. Using local image only.\n")
-        # Use local image for Kubernetes by referencing it directly
-        IMAGE_NAME = IMAGE_NAME  # No change needed; Kubernetes will pull from local Docker
+    print("\n=== Logging into Docker Hub and pushing image ===\n")
+    run_cmd(f'echo "{DOCKER_PASSWORD}" | docker login -u "{DOCKER_USERNAME}" --password-stdin')
+    run_cmd(f"docker push {IMAGE_NAME}")
 
     # -------------------------
     # 4. Deploy to Kubernetes
@@ -67,7 +64,7 @@ spec:
   containers:
     - name: {APP_NAME}
       image: {IMAGE_NAME}
-      imagePullPolicy: IfNotPresent
+      imagePullPolicy: Always
       ports:
         - containerPort: 8000
 """
@@ -78,16 +75,15 @@ spec:
     run_cmd(f"kubectl apply -f pod.yaml -n {K8S_NAMESPACE}")
 
     # -------------------------
-    # 5. Wait for Pod to Start
+    # 5. Wait for Pod
     # -------------------------
     print("\n=== Waiting for Pod to become Running ===\n")
 
-    for i in range(30):  # wait up to ~60 seconds
+    for i in range(30):
         result = subprocess.getoutput(
             f"kubectl get pod {APP_NAME} -n {K8S_NAMESPACE} -o jsonpath='{{.status.phase}}'"
         )
         print(f"Status: {result}")
-
         if result == "Running":
             break
         time.sleep(2)
@@ -97,7 +93,7 @@ spec:
         return
 
     # -------------------------
-    # 6. Get Pod Logs
+    # 6. Logs
     # -------------------------
     run_cmd(f"kubectl logs -n {K8S_NAMESPACE} {APP_NAME} --tail=50")
 
