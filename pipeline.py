@@ -19,11 +19,11 @@ def main():
     # -------------------------
     APP_NAME = "python-k8s-app"
     DOCKER_USER = "arun054"
-    
+
     # === ADD CREDENTIALS HERE ===
     DOCKER_USERNAME = "arun054"
     DOCKER_PASSWORD = "arunkumar"
-    
+
     REPO_URL = "https://github.com/arun12-svg/jenkins-pipeline.git"
     K8S_NAMESPACE = "default"
 
@@ -72,6 +72,16 @@ spec:
     with open("pod.yaml", "w") as f:
         f.write(pod_yaml)
 
+    # -------------------------
+    # Delete old pod first (important)
+    # -------------------------
+    print("\n=== Deleting old pod if it exists ===\n")
+    run_cmd(f"kubectl delete pod {APP_NAME} -n {K8S_NAMESPACE} --ignore-not-found=true")
+
+    # -------------------------
+    # Apply new pod
+    # -------------------------
+    print("\n=== Creating new pod ===\n")
     run_cmd(f"kubectl apply -f pod.yaml -n {K8S_NAMESPACE}")
 
     # -------------------------
