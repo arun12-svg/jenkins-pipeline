@@ -1,5 +1,6 @@
 import os
 import subprocess
+import time
 from datetime import datetime
 
 
@@ -73,9 +74,27 @@ spec:
     run_cmd(f"kubectl apply -f pod.yaml -n {K8S_NAMESPACE}")
 
     # -------------------------
-    # 5. Verify Deployment
+    # 5. Wait for Pod to Start
     # -------------------------
-    run_cmd(f"kubectl get pods -n {K8S_NAMESPACE}")
+    print("\n=== Waiting for Pod to become Running ===\n")
+
+    for i in range(30):  # wait up to 60 seconds
+        result = subprocess.getoutput(
+            f"kubectl get pod {APP_NAME} -n {K8S_NAMESPACE} -o jsonpath='{{.status.phase}}'"
+        )
+        print(f"Status: {result}")
+
+        if result == "Running":
+            break
+        time.sleep(2)
+    else:
+        print("❌ Pod did not reach Running state in time.")
+        run_cmd(f"kubectl describe pod {APP_NAME} -n {K8S_NAMESPACE}")
+        return
+
+    # -------------------------
+    # 6. Get Pod Logs
+    # -------------------------
     run_cmd(f"kubectl logs -n {K8S_NAMESPACE} {APP_NAME} --tail=50")
 
     print("\n=== Deployment Completed Successfully ===")
