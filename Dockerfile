@@ -1,4 +1,9 @@
 FROM python:3.11-slim
-COPY . /app
+
 WORKDIR /app
-CMD ["python", "-m", "http.server", "8087"]
+COPY . /app
+
+RUN pip install flask
+
+EXPOSE 8000
+CMD ["python", "main.py"]

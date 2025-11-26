@@ -1,69 +1,85 @@
-import subprocess
 import os
-import sys
+import subprocess
+from datetime import datetime
 
-DOCKER_IMAGE = "arun054/myapp"
-DOCKER_TAG = "v1"
 
-def run(cmd):
-    print(f"\n---- Running: {cmd} ----\n")
-    result = subprocess.run(cmd, shell=True)
+def run_cmd(cmd):
+    print(f"\n>>> Running: {cmd}")
+    result = subprocess.run(cmd, shell=True, text=True)
     if result.returncode != 0:
-        print(f"Failed: {cmd}")
-        sys.exit(result.returncode)
+        raise Exception(f"Command failed: {cmd}")
+    return result
 
 
-def build_docker_image():
-    run(f"docker build -t {DOCKER_IMAGE}:{DOCKER_TAG} .")
+def main():
 
+    # -------------------------
+    # CONFIG
+    # -------------------------
+    APP_NAME = "python-k8s-app"
+    DOCKER_USER = "arun054"
+    REPO_URL = "https://github.com/arun12-svg/jenkins-pipeline.git"
+    K8S_NAMESPACE = "default"
 
-def docker_login_and_push():
-    USER = os.getenv("DOCKER_USER")
-    PASS = os.getenv("DOCKER_PASS")
+    # Dynamic Version Tag
+    VERSION = datetime.now().strftime("%Y%m%d-%H%M%S")
+    IMAGE_NAME = f"{DOCKER_USER}/{APP_NAME}:{VERSION}"
 
-    if not USER or not PASS:
-        print("Missing DockerHub credentials (DOCKER_USER / DOCKER_PASS)")
-        sys.exit(1)
+    print(f"\n=== Using dynamic image: {IMAGE_NAME} ===\n")
 
-    run(f'echo "{PASS}" | docker login -u "{USER}" --password-stdin')
-    run(f"docker push {DOCKER_IMAGE}:{DOCKER_TAG}")
+    # -------------------------
+    # 1. Clone Repository
+    # -------------------------
+    run_cmd(f"rm -rf repo && git clone {REPO_URL} repo")
+    os.chdir("repo")
 
+    # -------------------------
+    # 2. Build Docker Image
+    # -------------------------
+    run_cmd(f"docker build -t {IMAGE_NAME} .")
 
-def load_kubeconfig():
-    kubeconfig_file = os.getenv("KUBECONFIG")
+    # -------------------------
+    # 3. Login & Push Image
+    # -------------------------
+    docker_user = os.getenv("DOCKER_USERNAME")
+    docker_pass = os.getenv("DOCKER_PASSWORD")
 
-    if not kubeconfig_file or not os.path.exists(kubeconfig_file):
-        print("Kubeconfig file missing or invalid")
-        print(f"KUBECONFIG env value: {kubeconfig_file}")
-        sys.exit(1)
-
-    os.environ["KUBECONFIG"] = kubeconfig_file
-    print(f"Using kubeconfig file: {kubeconfig_file}")
-
-
-def deploy_kubernetes():
-    print("Deploying to Kubernetes...")
-
-    update_cmd = (
-        f"kubectl set image deployment/myapp myapp={DOCKER_IMAGE}:{DOCKER_TAG} "
-        f"--namespace default"
-    )
-
-    result = subprocess.run(update_cmd, shell=True)
-
-    if result.returncode != 0:
-        print("Deployment not found — applying YAML manifests")
-        run("kubectl apply -f k8s-deployment.yml")
+    if docker_user and docker_pass:
+        run_cmd(f'echo "{docker_pass}" | docker login -u "{docker_user}" --password-stdin')
+        run_cmd(f"docker push {IMAGE_NAME}")
     else:
-        print("Deployment updated successfully")
+        print("⚠ Skipping push (DOCKER_USERNAME or PASSWORD missing)")
+
+    # -------------------------
+    # 4. Deploy to Kubernetes
+    # -------------------------
+    pod_yaml = f"""
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {APP_NAME}
+  namespace: {K8S_NAMESPACE}
+spec:
+  containers:
+    - name: {APP_NAME}
+      image: {IMAGE_NAME}
+      ports:
+        - containerPort: 8000
+"""
+
+    with open("pod.yaml", "w") as f:
+        f.write(pod_yaml)
+
+    run_cmd(f"kubectl apply -f pod.yaml -n {K8S_NAMESPACE}")
+
+    # -------------------------
+    # 5. Verify Deployment
+    # -------------------------
+    run_cmd(f"kubectl get pods -n {K8S_NAMESPACE}")
+    run_cmd(f"kubectl logs -n {K8S_NAMESPACE} {APP_NAME} --tail=50")
+
+    print("\n=== Deployment Completed Successfully ===")
 
 
 if __name__ == "__main__":
-    print("Starting Jenkins Python Pipeline...")
-
-    build_docker_image()
-    docker_login_and_push()
-    load_kubeconfig()
-    deploy_kubernetes()
-
-    print("Pipeline completed successfully")
+    main()
